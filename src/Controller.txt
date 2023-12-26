@@ -1,0 +1,197 @@
+#include <Arduino.h>
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
+#include <OnePinCapSense-master/OnePinCapSense.h>
+
+LiquidCrystal_I2C lcd(0x27, 16, 4);
+
+int FaderPin = A0;
+
+int faderTouchPin = 4;
+int sense = 0;
+int touchThres = 50;
+int touchedState = 300;
+bool touched = false;
+
+OnePinCapSense opcs = OnePinCapSense();
+
+int motorPinUp = 2;
+int motorPinDown = 3;
+
+int min;
+int max;
+
+int smooth = 0;
+
+int settingFader = false;
+
+
+
+void checkTouch(){
+    sense = sense*0.7 + opcs.readCapacitivePin(faderTouchPin)*0.3;
+    if(sense > touchedState -touchThres){
+        touched = true;
+    }else{
+        touched = false;
+    }
+}
+
+
+void debugLcd(){
+    //this is just for Debugging
+    checkTouch();
+    int val = analogRead(FaderPin);
+    smooth = 0.505*smooth + 0.495*val;
+    if(val == min){
+        smooth = min;
+    } else if(val == max){
+        smooth = max;
+    }
+
+    lcd.setCursor(0,0);
+    lcd.print("Fader Value: ");
+    if(smooth < 1000){
+        lcd.print(smooth);
+        lcd.print(" ");
+        if(smooth < 100){
+            lcd.print(" ");
+        }
+        if(smooth < 10){
+            lcd.print(" ");
+        }
+        if(smooth < min && smooth >= 0){
+            lcd.setCursor(0,3);
+            lcd.print("Fader init WRONG!");
+        }
+    }else{
+        lcd.print(smooth);
+        if(smooth > max){
+            lcd.setCursor(0,3);
+            lcd.print("Fader init WRONG!");;
+        }
+    }
+    Serial.println(smooth);
+
+    lcd.setCursor(0,3);
+    lcd.print("Touched: ");
+    if(touched == 0){
+        lcd.print("False");
+    }else{
+        lcd.print("True ");
+    }
+
+
+
+}
+
+
+
+
+void setFader(int position, int margin){
+    settingFader = true;
+        position = map(position, 0, 127, min, max);
+        if (position >= max - margin || position <= min + margin) {
+            margin = 40;
+        }
+        int currentVal = analogRead(FaderPin);
+
+        if (position > currentVal) {
+            while (analogRead(FaderPin) < position - margin) {
+                checkTouch();
+                if(touched == true){
+                    break;
+                }else{
+                digitalWrite(motorPinUp, HIGH);
+                debugLcd();
+                }
+            }
+            digitalWrite(motorPinUp, LOW);
+            settingFader = false;
+        } else if (position < currentVal) {
+            while (analogRead(FaderPin) > position + margin) {
+                checkTouch();
+                if(touched == true){
+                    break;
+                }else{
+                digitalWrite(motorPinDown, HIGH);
+                debugLcd();
+                }
+            }
+            digitalWrite(motorPinDown, LOW);
+            settingFader = false;
+        } else {
+            digitalWrite(motorPinUp, LOW);
+            digitalWrite(motorPinDown, LOW);
+            settingFader = false;
+        }
+}
+
+
+void initFaders(){
+
+    pinMode(motorPinDown, OUTPUT);
+    pinMode(motorPinUp, OUTPUT);
+    digitalWrite(motorPinDown, HIGH);
+    delay(500);
+    digitalWrite(motorPinDown, LOW);
+
+    min = analogRead(FaderPin);
+
+    lcd.setCursor(0,1);
+    lcd.print("Fader Min: ");
+    lcd.print(min);
+
+    digitalWrite(motorPinUp, HIGH);
+    delay(500);
+    digitalWrite(motorPinUp, LOW);
+
+    max = analogRead(FaderPin);
+
+    lcd.setCursor(0,2);
+    lcd.print("Fader Max: ");
+    lcd.print(max);
+
+}
+
+
+
+
+void setup() {
+    Serial.begin(115200);
+
+    lcd.init();
+    lcd.backlight();
+
+    initFaders();
+    lcd.backlight();
+}
+
+
+
+void test(){
+    checkTouch();
+    if(touched == false){
+        setFader(0, 15);
+        delay(100);
+        checkTouch();
+    }
+    if(touched == false){
+        setFader(20, 15);
+        delay(100);
+        checkTouch();
+    }
+    if(touched == false){
+        setFader(127, 15);
+        delay(100);
+        checkTouch();
+    }
+    if(touched == false){
+        setFader(80, 15);
+        delay(100);
+        checkTouch();
+    }
+}
+void loop() {
+    debugLcd();
+    //test();
+}
