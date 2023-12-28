@@ -4,7 +4,6 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
-
 using namespace std;
 
 class MemoryScanner {
@@ -64,15 +63,15 @@ private:
     void* processHandle;
 };
 
-void printValueEvery100Milliseconds(HANDLE processHandle, uintptr_t address) {
+void printValueEvery10Milliseconds(HANDLE processHandle, uintptr_t address) {
     int value;
     while (true) {
         if (ReadProcessMemory(processHandle, (LPVOID)address, &value, sizeof(value), NULL)) {
             std::cout << "Value at address " << address << ": " << value << std::endl;
         }
 
-        // Sleep for 100 milliseconds
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // Sleep for 10 milliseconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 
@@ -155,7 +154,7 @@ int main() {
             std::cout << "  " << address << std::endl;
 
             // Start a separate thread to print the value every 100 milliseconds for the first address found
-            std::thread(printValueEvery100Milliseconds, hProcess, address).detach();
+            std::thread(printValueEvery10Milliseconds, hProcess, address).detach();
             break;
         }
 
