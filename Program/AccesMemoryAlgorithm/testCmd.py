@@ -1,7 +1,7 @@
 from subprocess import Popen, PIPE, CalledProcessError
 import process_interface
 from time import sleep
-import ctypes
+from ctypes import *
 
 #246 1 <-- is in EXE implemented!
 #241 2
@@ -21,13 +21,12 @@ if p.returncode != 0:
 print("Finished 1. Search!")
 sleep(10)
 
-Process = process_interface.ProcessInterface()
-Process.open("Daslight4")
+process = process_interface.ProcessInterface()
+process.open("Daslight4")
 
 for address in firstSearch:
-    intvalue = ctypes.c_int.from_buffer(Process.read_memory(address, 4))
-    if intvalue == secondSearchVal:
-        secondSearch.append(address)
+    int_val = c_int.from_buffer(process.read_memory(int(address), buffer_size=8))
+    print(int_val.value)
 
 print("Finished 2. Search!")
 print(secondSearch)
