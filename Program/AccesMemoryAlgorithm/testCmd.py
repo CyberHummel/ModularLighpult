@@ -4,7 +4,10 @@ from subprocess import Popen, PIPE, CalledProcessError
 import process_interface
 from time import sleep
 from ctypes import *
+import rtmidi
 
+midiout = rtmidi.MidiOut()
+ports = midiout.get_ports()
 #246 1 <-- is in EXE implemented!
 #241 2
 #235 3
@@ -17,6 +20,9 @@ secondSearch = []
 thirdSearch = []
 
 def fetchFaders():
+
+    midiout.open_port(ports[1])
+
     with Popen("memory_scanner.exe", stdout=PIPE, bufsize=1, universal_newlines=True) as p:
         for line in p.stdout:
             firstSearch.append(line.removeprefix("'").removesuffix("\n").strip())
@@ -50,7 +56,10 @@ def fetchFaders():
 
 if __name__ == '__main__':
     try:
-        fetchFaders()
+        print(ports)
+        #fetchFaders()
+        note_on = [0x90, 60, 112]
+        midiout.send_message(note_on)
     except KeyboardInterrupt:
         print('Interrupted by User')
         try:
