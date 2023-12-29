@@ -21,7 +21,11 @@ def fetchFaders():
         for line in p.stdout:
             firstSearch.append(line.removeprefix("'").removesuffix("\n").strip())
     if p.returncode != 0:
-        raise CalledProcessError(p.returncode, p.args)
+        print("Daslight is not Opened!")
+        try:
+            sys.exit(130)
+        except SystemExit:
+            os._exit(130)
 
     print("Finished 1. Search!")
     sleep(5)
