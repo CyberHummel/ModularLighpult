@@ -1,6 +1,6 @@
 from subprocess import Popen, PIPE, CalledProcessError
 
-outut = []
+output = []
 
 with Popen("test.exe", stdout=PIPE, bufsize=1, universal_newlines=True) as p:
     for line in p.stdout:
