@@ -27,6 +27,7 @@ process.open("Daslight4")
 for address in firstSearch:
     int_val = c_int.from_buffer(process.read_memory(int(address), buffer_size=8))
     print(int_val.value)
+    print("kek")
 
 print("Finished 2. Search!")
 print(secondSearch)
