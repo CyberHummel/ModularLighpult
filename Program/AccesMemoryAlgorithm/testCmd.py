@@ -1,8 +1,9 @@
 from subprocess import Popen, PIPE, CalledProcessError
+from Program import AccesMemoryAlgorithm
 
 output = []
 
-with Popen("test.exe", stdout=PIPE, bufsize=1, universal_newlines=True) as p:
+with Popen("", stdout=PIPE, bufsize=1, universal_newlines=True) as p:
     for line in p.stdout:
         output.append(line.removeprefix("'").removesuffix("\n").strip())
 
