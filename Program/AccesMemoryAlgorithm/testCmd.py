@@ -52,7 +52,7 @@ if __name__ == '__main__':
     try:
         fetchFaders()
     except KeyboardInterrupt:
-        print('Interrupted by Keyboard')
+        print('Interrupted by User')
         try:
             sys.exit(130)
         except SystemExit:
