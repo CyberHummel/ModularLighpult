@@ -4,7 +4,6 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
-
 using namespace std;
 
 class MemoryScanner {
@@ -44,24 +43,40 @@ public:
         return !foundAddresses.empty();
     }
 
+    bool scanAddressesForValue(const std::vector<uintptr_t>& addresses, int value, std::vector<uintptr_t>& foundAddresses) {
+        foundAddresses.clear();
+
+        for (uintptr_t address : addresses) {
+            // Read the value at the current address
+            int readValue;
+            if (ReadProcessMemory(processHandle, (LPVOID)address, &readValue, sizeof(readValue), NULL)) {
+                if (readValue == value) {
+                    foundAddresses.push_back(address);
+                }
+            }
+        }
+
+        return !foundAddresses.empty();
+    }
+
 private:
     void* processHandle;
 };
 
-// Forward declaration
-HANDLE getProcessHandleByName(const std::string& processName);
-
-void printValueEvery100Milliseconds(HANDLE processHandle, uintptr_t address) {
+void printValueEvery10Milliseconds(HANDLE processHandle, uintptr_t address) {
+    int value;
     while (true) {
-        int value;
         if (ReadProcessMemory(processHandle, (LPVOID)address, &value, sizeof(value), NULL)) {
             std::cout << "Value at address " << address << ": " << value << std::endl;
         }
 
-        // Sleep for 100 milliseconds
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // Sleep for 10 milliseconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
+
+// Forward declaration
+HANDLE getProcessHandleByName(const std::string& processName);
 
 int main() {
     const std::string processName = "Daslight4.exe";
@@ -113,16 +128,48 @@ int main() {
             return 1;
         }
 
-        std::cout << "Found " << secondSearchAddresses.size() << " occurrences of " << secondSearchValue << " in process memory after the pause:" << std::endl;
-        for (uintptr_t address : secondSearchAddresses) {
+        // Pause for 5 seconds
+        std::cout << "Pausing for 5 seconds..." << std::endl;
+        Sleep(5000);
+
+        // Search for the third integer value in the addresses from the second search
+        int thirdSearchValue = 123;
+        std::vector<uintptr_t> thirdSearchAddresses;
+
+        // Measure the time to find the third list of addresses
+        start = std::chrono::high_resolution_clock::now();
+        if (!scanner.scanAddressesForValue(secondSearchAddresses, thirdSearchValue, thirdSearchAddresses)) {
+            std::cout << "Third value not found in process memory after the pause" << std::endl;
+            CloseHandle(hProcess);
+            return 1;
+        }
+        end = std::chrono::high_resolution_clock::now();
+        duration = end - start;
+
+        // Print the time taken to find the third list of addresses
+        std::cout << "Time taken to find the third list of addresses: " << duration.count() << " seconds" << std::endl;
+
+        std::cout << "Found " << thirdSearchAddresses.size() << " occurrences of " << thirdSearchValue << " in process memory after the pause:" << std::endl;
+        for (uintptr_t address : thirdSearchAddresses) {
             std::cout << "  " << address << std::endl;
 
-            // Start a separate thread to print the value every 100 milliseconds
-            std::thread(printValueEvery100Milliseconds, hProcess, address).detach();
+            // Start a separate thread to print the value every 100 milliseconds for the first address found
+            std::thread(printValueEvery10Milliseconds, hProcess, address).detach();
+            break;
         }
 
-        // Keep the main thread running to wait for the value updates
-        std::this_thread::sleep_for(std::chrono::seconds(30));
+        // Keep the main thread running until the target process is terminated
+        while (true) {
+            // Check if the target process is still running
+            DWORD exitCode;
+            if (GetExitCodeProcess(hProcess, &exitCode) && exitCode != STILL_ACTIVE) {
+                std::cout << "Target process has terminated." << std::endl;
+                break;
+            }
+
+            // Sleep for 1 second
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
 
         CloseHandle(hProcess);
     } else {
@@ -133,6 +180,7 @@ int main() {
 
     return 0;
 }
+
 
 // Implementation of getProcessHandleByName goes here
 HANDLE getProcessHandleByName(const std::string& processName) {
