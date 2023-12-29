@@ -1,6 +1,4 @@
 from subprocess import Popen, PIPE, CalledProcessError
-from Program import AccesMemoryAlgorithm
-
 output = []
 
 with Popen("", stdout=PIPE, bufsize=1, universal_newlines=True) as p:
