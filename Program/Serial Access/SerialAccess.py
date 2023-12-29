@@ -35,4 +35,4 @@ while True:
     if(command != None):
         print("Recieved: ")
         print(command)
-    writeCommand(0, 0, 0, 0, 100)
+    writeCommand(0, 0, 5, 0, 100)
