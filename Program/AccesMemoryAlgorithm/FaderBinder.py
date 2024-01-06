@@ -14,7 +14,6 @@ fader1MIDI = [0x90, 21]  # 0 = channelNumber1, 1= controllerNum
 fader2MIDI = [0x90, 22]
 fader1MemoryAddress = 0
 fader2MemoryAddress = 0
-
 midiout = rtmidi.MidiOut()
 ports = midiout.get_ports()
 # 246 1 <-- is in EXE implemented!
@@ -23,6 +22,11 @@ ports = midiout.get_ports()
 # 232 4
 secondSearchVal = 242
 thirdSearchVal = 234
+IN_portname = "DaslightIN"
+OUT_portname = "DaslightIN"
+
+portnum_IN = 0
+portnum_OUT = 0
 
 firstSearch = []
 secondSearch = []
@@ -33,8 +37,10 @@ def fetchFaders():
     global fader1MIDI, fader1MemoryAddress, fader2MemoryAddress, fader2MIDI
     win = gw.getWindowsWithTitle("Daslight 4")[0]
     win.activate()
-
-    midiout.open_port(1)
+    for port in ports:
+        if OUT_portname in port:
+            portnum_IN = ports.index(port)
+    midiout.open_port(portnum_IN)
     midiout.send_message([fader1MIDI[0], fader1MIDI[1], 123])
     midiout.send_message([fader2MIDI[0], fader2MIDI[1], 123])
 
@@ -49,10 +55,8 @@ def fetchFaders():
             os._exit(130)
 
     print("Finished 1. Search!")
-    sleep(1)
     midiout.send_message([fader1MIDI[0], fader1MIDI[1], 121])
     midiout.send_message([fader2MIDI[0], fader2MIDI[1], 121])
-
 
     process = process_interface.ProcessInterface()
     process.open("Daslight4")
@@ -62,35 +66,31 @@ def fetchFaders():
         if int_val.value == secondSearchVal:
             secondSearch.append(address)
 
-
     print("Finished 2. Search!")
-    sleep(1)
     print(secondSearch)
     midiout.send_message([fader1MIDI[0], fader1MIDI[1], round(interp(thirdSearchVal, [0, 255], [0, 127]))])
     midiout.send_message([fader2MIDI[0], fader2MIDI[1], round(interp(thirdSearchVal, [0, 255], [0, 127]))])
-
-
+    sleep(0.1)
     for address2 in secondSearch:
         int_val2 = c_int.from_buffer(process.read_memory(int(address2), buffer_size=8))
         if int_val2.value == thirdSearchVal:
             thirdSearch.append(address2)
 
     print("Finished 3. Search!")
-    sleep(1)
     print(thirdSearch)
 
     midiout.send_message([fader1MIDI[0], fader1MIDI[1], 116])
     midiout.send_message([fader2MIDI[0], fader2MIDI[1], 0])
+    sleep(0.1)
     for address3 in thirdSearch:
         int_val3 = c_int.from_buffer(process.read_memory(int(address3), buffer_size=8))
         if int_val3.value == 232:
             fader1MemoryAddress = address3
-            print(address3)
             break
 
-    sleep(0.5)
     midiout.send_message([fader1MIDI[0], fader1MIDI[1], 0])
     midiout.send_message([fader2MIDI[0], fader2MIDI[1], 116])
+    sleep(0.1)
     for address4 in thirdSearch:
         int_val4 = c_int.from_buffer(process.read_memory(int(address4), buffer_size=8))
         if int_val4.value == 232:
@@ -98,16 +98,28 @@ def fetchFaders():
             break
 
     midiout.send_message([fader2MIDI[0], fader2MIDI[1], 0])
-    sleep(0.5)
-    print(fader1MemoryAddress)
-    print(fader2MemoryAddress)
+    print("Fader1: " + str(fader1MemoryAddress))
+    print("Fader2: " + str(fader2MemoryAddress))
 
+def send_values_to_midi_channel(fader1_memory_address, fader2_memory_address):
+    process = process_interface.ProcessInterface()
+    process.open("Daslight4")
+    if ports:
+        while True:
+            fader1_value = c_int.from_buffer(process.read_memory(int(fader1_memory_address), buffer_size=8)).value
+            fader2_value = c_int.from_buffer(process.read_memory(int(fader2_memory_address), buffer_size=8)).value
 
+            mapped_fader1_value = round(interp(fader1_value, [0, 255], [0, 127]))
+            mapped_fader2_value = round(interp(fader2_value, [0, 255], [0, 127]))
+
+            midiout.send_message([0x90,23, mapped_fader1_value])
+            midiout.send_message([0x90,24, mapped_fader2_value])
+            sleep(0.001)
 if __name__ == '__main__':
     try:
-
         print(ports)
         fetchFaders()
+        send_values_to_midi_channel(fader1MemoryAddress, fader2MemoryAddress)
 
     except KeyboardInterrupt:
         print('Interrupted by User')
