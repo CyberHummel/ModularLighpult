@@ -24,13 +24,44 @@ int faderValueOld = 0;
 
 bool settingFader = false;
 
+String input;
+
+int channelInput;
+int pitchInput;
+int velocityInput;
 
 
-void noteOn(byte channel, byte pitch, byte velocity) {
-    Serial.println(channel);
-    Serial.println(pitch);
-    Serial.println(velocity);
+void sendMIDI(int channel, int pitch, int velocity){
+  Serial.print(channel);
+  Serial.print(":");
+  Serial.print(pitch);
+  Serial.print(":");
+  Serial.print(velocity);
+  Serial.println(";");
+  Serial.flush();
 }
+
+void readMIDI(){
+  if(Serial.available()){
+    input = Serial.readString();
+    if(input.endsWith(";")){
+      const int endInput = input.length();
+      char inputChar[input.length() +1];
+      input.remove(endInput-1);
+      input.toCharArray(inputChar, input.length()+1);
+      channelInput = atoi(strtok(inputChar, ":"));
+      pitchInput = atoi(strtok(NULL, ":"));
+      velocityInput = atoi(strtok(NULL, ";"));
+      if(channelInput == 1){
+        switch(pitchInput){
+          case 21:
+            setFader(velocityInput, 30);
+        }
+      }
+    }
+  }
+}
+
 
 
 
@@ -112,11 +143,14 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
+  readMIDI();
+
 
   if(settingFader != true){
     faderValue = faderValue*0.5 + analogRead(faderPin)*0.5;
     if(faderValue != faderValueOld){
-      noteOn(1, 21, map(faderValue, faderMin, faderMax, 0, 127));
+      sendMIDI(1, 21, map(faderValue, faderMin, faderMax, 0, 127));
+      Serial.flush();
       faderValueOld = faderValue;
     }
   }
