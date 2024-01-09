@@ -7,6 +7,7 @@ from time import sleep
 import pygetwindow as gw
 import rtmidi
 from numpy import interp
+from rtmidi import MidiOut
 
 import process_interface
 
@@ -23,7 +24,7 @@ ports = midiout.get_ports()
 secondSearchVal = 242
 thirdSearchVal = 234
 IN_portname = "DaslightIN"
-OUT_portname = "DaslightIN"
+OUT_portname = "Leonardo"
 
 portnum_IN = 0
 portnum_OUT = 0
@@ -38,7 +39,7 @@ def fetchFaders():
     win = gw.getWindowsWithTitle("Daslight 4")[0]
     win.activate()
     for port in ports:
-        if OUT_portname in port:
+        if IN_portname in port:
             portnum_IN = ports.index(port)
     midiout.open_port(portnum_IN)
     midiout.send_message([fader1MIDI[0], fader1MIDI[1], 123])
@@ -101,25 +102,37 @@ def fetchFaders():
     print("Fader1: " + str(fader1MemoryAddress))
     print("Fader2: " + str(fader2MemoryAddress))
 
+
 def send_values_to_midi_channel(fader1_memory_address, fader2_memory_address):
     process = process_interface.ProcessInterface()
     process.open("Daslight4")
+
+    midiout.close_port()
+
+    for port in ports:
+        if OUT_portname in port:
+            portnum_OUT = ports.index(port)
+    midiout.open_port(portnum_OUT)
     if ports:
         while True:
+
             fader1_value = c_int.from_buffer(process.read_memory(int(fader1_memory_address), buffer_size=8)).value
             fader2_value = c_int.from_buffer(process.read_memory(int(fader2_memory_address), buffer_size=8)).value
 
             mapped_fader1_value = round(interp(fader1_value, [0, 255], [0, 127]))
             mapped_fader2_value = round(interp(fader2_value, [0, 255], [0, 127]))
 
-            midiout.send_message([0x90,23, mapped_fader1_value])
-            midiout.send_message([0x90,24, mapped_fader2_value])
+            midiout.send_message([0x90,21, mapped_fader1_value])
+            midiout.send_message([0x90,22, mapped_fader2_value])
+
+            #TODO Serial implementation of MIDI transfer to Arduino
             sleep(0.001)
 if __name__ == '__main__':
     try:
         print(ports)
         fetchFaders()
         send_values_to_midi_channel(fader1MemoryAddress, fader2MemoryAddress)
+        midiout.open_port(4)
 
     except KeyboardInterrupt:
         print('Interrupted by User')
