@@ -58,6 +58,7 @@ void readMIDI(){
             setFader(velocityInput, 30);
         }
       }
+      Serial.flush();
     }
   }
 }
