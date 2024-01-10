@@ -7,9 +7,11 @@ from time import sleep
 import pygetwindow as gw
 import rtmidi
 from numpy import interp
-from rtmidi import MidiOut
 
 import process_interface
+
+import serial
+
 
 fader1MIDI = [0x90, 21]  # 0 = channelNumber1, 1= controllerNum
 fader2MIDI = [0x90, 22]
@@ -24,7 +26,7 @@ ports = midiout.get_ports()
 secondSearchVal = 242
 thirdSearchVal = 234
 IN_portname = "DaslightIN"
-OUT_portname = "Leonardo"
+OUT_portname = "DaslightOUT"
 
 portnum_IN = 0
 portnum_OUT = 0
@@ -33,6 +35,12 @@ firstSearch = []
 secondSearch = []
 thirdSearch = []
 
+mapped_fader1_valueOld = 0
+mapped_fader1_valueOld = 0
+
+arduino = serial.Serial(port='COM9', baudrate=115200, timeout=.1)
+
+sending = False
 
 def fetchFaders():
     global fader1MIDI, fader1MemoryAddress, fader2MemoryAddress, fader2MIDI
@@ -103,36 +111,86 @@ def fetchFaders():
     print("Fader2: " + str(fader2MemoryAddress))
 
 
-def send_values_to_midi_channel(fader1_memory_address, fader2_memory_address):
-    process = process_interface.ProcessInterface()
-    process.open("Daslight4")
+def writeSerial(channel, pitch, velocity):
+    arduino.write(bytes(str(channel), 'utf-8'))
+    arduino.write(bytes(":", 'utf-8'))
+    arduino.write(bytes(str(pitch), 'utf-8'))
+    arduino.write(bytes(":", 'utf-8'))
+    arduino.write(bytes(str(velocity), 'utf-8'))
+    arduino.write(bytes(";", 'utf-8'))
+    arduino.flush()
+    arduino.reset_output_buffer()
 
-    midiout.close_port()
 
-    for port in ports:
-        if OUT_portname in port:
-            portnum_OUT = ports.index(port)
-    midiout.open_port(portnum_OUT)
-    if ports:
-        while True:
+def readSerial():
+    data = arduino.readline().rstrip()
+    # arduino.flush()
+    arduino.reset_input_buffer()
+    return data
 
+
+def send_values_to_midi_channel(fader1_memory_address, fader2_memory_address, process):
+    global mapped_fader1_valueOld
+    global mapped_fader2_valueOld
+
+    data = readSerial()
+    if not bytes(";", 'utf-8') in data:
+        if arduino.readline().rstrip() != None:
             fader1_value = c_int.from_buffer(process.read_memory(int(fader1_memory_address), buffer_size=8)).value
             fader2_value = c_int.from_buffer(process.read_memory(int(fader2_memory_address), buffer_size=8)).value
 
             mapped_fader1_value = round(interp(fader1_value, [0, 255], [0, 127]))
             mapped_fader2_value = round(interp(fader2_value, [0, 255], [0, 127]))
 
-            midiout.send_message([0x90,21, mapped_fader1_value])
-            midiout.send_message([0x90,22, mapped_fader2_value])
+            if (mapped_fader1_value != mapped_fader1_valueOld):
+                writeSerial(1, 21, mapped_fader1_value)
+                mapped_fader1_valueOld = mapped_fader1_value
+                print("sad")
+                sleep(0.05)
 
-            #TODO Serial implementation of MIDI transfer to Arduino
-            sleep(0.001)
+
+
+        sleep(0.005)
+
+
+def read_values_to_midi_channel():
+    data = readSerial()
+    if (data != None and bytes(";", 'utf-8') in data):
+        data = str(data)
+        data = data.split(":")
+        if len(data) == 3:
+            channel = data[0].removeprefix("b'")
+            pitch = data[1]
+            value = data[2].removesuffix(";'")
+
+            if (channel == "1"):
+                if (pitch == "21"):
+                    print(value)
+                    midiout.send_message([fader1MIDI[0], fader1MIDI[1], int(value)])
+
+
 if __name__ == '__main__':
     try:
         print(ports)
         fetchFaders()
-        send_values_to_midi_channel(fader1MemoryAddress, fader2MemoryAddress)
-        midiout.open_port(4)
+
+        process = process_interface.ProcessInterface()
+        process.open("Daslight4")
+
+
+        #sending = Thread(target=send_values_to_midi_channel, args=(fader1MemoryAddress, fader2MemoryAddress, process))
+        #receiving = Thread(target=read_values_to_midi_channel)
+
+        #sending.start()
+        #receiving.start()
+        while True:
+            read_values_to_midi_channel()
+            sleep(0.01)
+            send_values_to_midi_channel(fader1MemoryAddress, fader2MemoryAddress, process)
+        #TODO better Responsiveness
+        #TODO sendingMargins
+
+
 
     except KeyboardInterrupt:
         print('Interrupted by User')

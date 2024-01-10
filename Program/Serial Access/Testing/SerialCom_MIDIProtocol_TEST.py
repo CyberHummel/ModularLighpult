@@ -15,15 +15,15 @@ def writeSerial(channel, pitch, velocity):
 def readSerial():
     data = arduino.readline().rstrip()
     arduino.flush()
-    if (bytes(";", 'utf-8') in data):
-        return data
+    return data
 
 
 while True:
-    channel = input("Enter a Channel: ")
-    pitch = input("Enter a Pitch: ")
-    velocity = input("Enter a Velocity: ")
+    #channel = input("Enter a Channel: ")
+    #pitch = input("Enter a Pitch: ")
+    #velocity = input("Enter a Velocity: ")
 
-    writeSerial(channel, pitch, velocity)
-
-    #print(readSerial())
+    #writeSerial(channel, pitch, velocity)
+    data = readSerial()
+    if(bytes(";", 'utf-8') in data):
+        print(data)
