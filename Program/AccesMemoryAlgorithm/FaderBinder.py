@@ -38,7 +38,7 @@ thirdSearch = []
 mapped_fader1_valueOld = 0
 mapped_fader1_valueOld = 0
 
-arduino = serial.Serial(port='COM9', baudrate=115200, timeout=.1)
+arduino = serial.Serial(port='COM9', baudrate=1000000, timeout=.1)
 
 sending = False
 

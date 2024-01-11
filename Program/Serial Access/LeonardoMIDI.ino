@@ -21,6 +21,7 @@ int faderTouchPin = 4;
 
 int faderValue = 0;
 int faderValueOld = 0;
+int mappedfaderValue = 0;
 
 bool settingFader = false;
 
@@ -43,7 +44,9 @@ void sendMIDI(int channel, int pitch, int velocity){
 
 void readMIDI(){
   if(Serial.available()){
+    digitalWrite(led1, HIGH);
     input = Serial.readString();
+    digitalWrite(led1, LOW);
     if(input.endsWith(";")){
       const int endInput = input.length();
       char inputChar[input.length() +1];
@@ -52,14 +55,17 @@ void readMIDI(){
       channelInput = atoi(strtok(inputChar, ":"));
       pitchInput = atoi(strtok(NULL, ":"));
       velocityInput = atoi(strtok(NULL, ";"));
-      if(channelInput == 1){
+      if(channelInput == 1 && velocityInput < 127){
         switch(pitchInput){
           case 21:
-            setFader(velocityInput, 30);
+            settingFader = true;
+            setFader(velocityInput, 2);
+            settingFader = false;
         }
       }
-      Serial.flush();
+      //Serial.flush();
     }
+
   }
 }
 
@@ -92,7 +98,6 @@ void initFaders(){
 }
 
 void setOutputs_INPUTS(){
-  pinMode(button1, INPUT);
   pinMode(led1, OUTPUT);
 }
 
@@ -107,11 +112,10 @@ void setFader(int position, int margin){
         break;
       }
       currentPosition = analogRead(faderPin);
-      Serial.println(currentPosition);
+      //Serial.println(currentPosition);
       digitalWrite(motorUp, HIGH);
     }while(position > currentPosition + margin);
     digitalWrite(motorUp, LOW);
-    settingFader = false;
   }else if(position < currentPosition){
       do{
         settingFader = true;
@@ -119,15 +123,13 @@ void setFader(int position, int margin){
           break;
         }
       currentPosition = analogRead(faderPin);
-      Serial.println(currentPosition);
+      //Serial.println(currentPosition);
       digitalWrite(motorDown, HIGH);
     }while(position < currentPosition - margin);
     digitalWrite(motorDown, LOW);
-    settingFader = false;
   }else{
     digitalWrite(motorUp, LOW);
     digitalWrite(motorDown, LOW);
-    settingFader = false;
   }
 }
 
@@ -138,7 +140,8 @@ void setup() {
   // put your setup code here,   to run once:
   setOutputs_INPUTS();
   initFaders();
-  Serial.begin(115200);
+  Serial.begin(1000000);
+  Serial.setTimeout(1);
 }
 
 void loop() {
@@ -147,12 +150,13 @@ void loop() {
   readMIDI();
 
 
-  if(settingFader != true){
-    faderValue = faderValue*0.5 + analogRead(faderPin)*0.5;
-    if(faderValue != faderValueOld){
-      sendMIDI(1, 21, map(faderValue, faderMin, faderMax, 0, 127));
+  if(!Serial.available()&& !settingFader){
+    faderValue = faderValue*0.64 + analogRead(faderPin)*0.46;
+    mappedfaderValue = map(faderValue, faderMin, faderMax, 0, 127);
+    if(mappedfaderValue != faderValueOld){
+      sendMIDI(1, 21,mappedfaderValue );
       Serial.flush();
-      faderValueOld = faderValue;
+      faderValueOld = mappedfaderValue;
     }
   }
 }
