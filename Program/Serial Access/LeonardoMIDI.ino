@@ -17,7 +17,7 @@ int faderMin;
 int faderMax;
 
 int faderSense = 0;
-int faderTouchPin = 4;
+int faderTouchPin = 5;
 
 int faderValue = 0;
 int faderValueOld = 0;
@@ -63,7 +63,6 @@ void readMIDI(){
             settingFader = false;
         }
       }
-      //Serial.flush();
     }
 
   }
@@ -112,7 +111,6 @@ void setFader(int position, int margin){
         break;
       }
       currentPosition = analogRead(faderPin);
-      //Serial.println(currentPosition);
       digitalWrite(motorUp, HIGH);
     }while(position > currentPosition + margin);
     digitalWrite(motorUp, LOW);
@@ -123,7 +121,6 @@ void setFader(int position, int margin){
           break;
         }
       currentPosition = analogRead(faderPin);
-      //Serial.println(currentPosition);
       digitalWrite(motorDown, HIGH);
     }while(position < currentPosition - margin);
     digitalWrite(motorDown, LOW);
@@ -142,6 +139,8 @@ void setup() {
   initFaders();
   Serial.begin(1000000);
   Serial.setTimeout(1);
+  Serial.println(faderMin);
+  Serial.println(faderMax);
 }
 
 void loop() {
@@ -150,11 +149,11 @@ void loop() {
   readMIDI();
 
 
-  if(!Serial.available()&& !settingFader){
+  if(!Serial.available() && !settingFader && checkTouch()){
     faderValue = faderValue*0.64 + analogRead(faderPin)*0.46;
-    mappedfaderValue = map(faderValue, faderMin, faderMax, 0, 127);
+    mappedfaderValue = map(faderValue, faderMin, faderMax, 0, 100);
     if(mappedfaderValue != faderValueOld){
-      sendMIDI(1, 21,mappedfaderValue );
+      sendMIDI(1, 21, mappedfaderValue);
       Serial.flush();
       faderValueOld = mappedfaderValue;
     }

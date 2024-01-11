@@ -2,6 +2,7 @@ import os
 import sys
 from ctypes import *
 from subprocess import Popen, PIPE
+import time
 from time import sleep
 
 import pygetwindow as gw
@@ -11,7 +12,6 @@ from numpy import interp
 import process_interface
 
 import serial
-
 
 fader1MIDI = [0x90, 21]  # 0 = channelNumber1, 1= controllerNum
 fader2MIDI = [0x90, 22]
@@ -41,6 +41,10 @@ mapped_fader1_valueOld = 0
 arduino = serial.Serial(port='COM9', baudrate=1000000, timeout=.1)
 
 sending = False
+
+currentFaderPos = 0
+lastFaderPos = 0
+
 
 def fetchFaders():
     global fader1MIDI, fader1MemoryAddress, fader2MemoryAddress, fader2MIDI
@@ -111,15 +115,24 @@ def fetchFaders():
     print("Fader2: " + str(fader2MemoryAddress))
 
 
-def writeSerial(channel, pitch, velocity):
-    arduino.write(bytes(str(channel), 'utf-8'))
-    arduino.write(bytes(":", 'utf-8'))
-    arduino.write(bytes(str(pitch), 'utf-8'))
-    arduino.write(bytes(":", 'utf-8'))
-    arduino.write(bytes(str(velocity), 'utf-8'))
-    arduino.write(bytes(";", 'utf-8'))
-    arduino.flush()
-    arduino.reset_output_buffer()
+def writeSerial(channel, pitch, velocity, margin):
+    global lastFaderPos
+    global currentFaderPos
+
+    currentFaderPos = int(velocity)
+    if lastFaderPos - margin > currentFaderPos or lastFaderPos + margin < currentFaderPos:
+        arduino.write(bytes(channel, 'utf-8'))
+        arduino.write(bytes(":", 'utf-8'))
+        arduino.write(bytes(pitch, 'utf-8'))
+        arduino.write(bytes(":", 'utf-8'))
+        arduino.write(bytes(velocity, 'utf-8'))
+        arduino.write(bytes(";", 'utf-8'))
+        arduino.flush()
+        arduino.reset_input_buffer()
+        arduino.reset_output_buffer()
+        time.sleep(0.25)
+
+    lastFaderPos = currentFaderPos;
 
 
 def readSerial():
@@ -143,12 +156,10 @@ def send_values_to_midi_channel(fader1_memory_address, fader2_memory_address, pr
             mapped_fader2_value = round(interp(fader2_value, [0, 255], [0, 127]))
 
             if (mapped_fader1_value != mapped_fader1_valueOld):
-                writeSerial(1, 21, mapped_fader1_value)
+                writeSerial("1", "21", str(mapped_fader1_value), 1)
                 mapped_fader1_valueOld = mapped_fader1_value
                 print("sad")
                 sleep(0.05)
-
-
 
         sleep(0.005)
 
@@ -177,20 +188,10 @@ if __name__ == '__main__':
         process = process_interface.ProcessInterface()
         process.open("Daslight4")
 
-
-        #sending = Thread(target=send_values_to_midi_channel, args=(fader1MemoryAddress, fader2MemoryAddress, process))
-        #receiving = Thread(target=read_values_to_midi_channel)
-
-        #sending.start()
-        #receiving.start()
         while True:
             read_values_to_midi_channel()
             sleep(0.01)
             send_values_to_midi_channel(fader1MemoryAddress, fader2MemoryAddress, process)
-        #TODO better Responsiveness
-        #TODO sendingMargins
-
-
 
     except KeyboardInterrupt:
         print('Interrupted by User')
