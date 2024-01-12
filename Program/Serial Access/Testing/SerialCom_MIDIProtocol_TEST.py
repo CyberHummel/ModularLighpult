@@ -37,8 +37,8 @@ while True:
 
     velocity = input("Enter a Velocity: ")
 
-    writeSerial("1", "21", velocity, 2)
+    writeSerial("1", "21", velocity, 1)
 
-    data = readSerial()
-    if (bytes(";", 'utf-8') in data):
-        print(data)
+    #data = readSerial()
+    #if (bytes(";", 'utf-8') in data):
+       #print(data)
