@@ -3,8 +3,6 @@ import sys
 from ctypes import *
 from subprocess import Popen, PIPE
 from time import sleep
-
-import pygetwindow as gw
 import rtmidi
 from numpy import interp
 
