@@ -100,6 +100,7 @@ void readMIDI(){
           sendMIDI(channelInput, pitchInput, velocityInput);
         }
       }
+      Serial.flush();
   }
 }
 
